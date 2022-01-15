@@ -1,0 +1,259 @@
+#!/bin/bash
+#
+# Create a Proxmox Template
+# Source: https://github.com/trfore/proxmox-template-scripts
+#
+# Copyright 2022 Taylor Fore
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -e
+
+# Required Values
+VM_ID=${VM_ID:-9000}
+VM_NAME=${VM_NAME:-"template"}
+VM_IMAGE=${VM_IMAGE:-""}
+# Optional Values
+VM_BIOS=${VM_BIOS:-"seabios"}
+VM_MACHINE=${VM_MACHINE:-"q35"}
+VM_MEMORY=${VM_MEMORY:-1024}
+VM_NET_BRIDGE=${VM_NET_BRIDGE:-"vmbr0"}
+VM_NET_TYPE=${VM_NET_TYPE:-"virtio"}
+VM_NET_VLAN=${VM_NET_VLAN:-1}
+VM_OS=${VM_OS:-"l26"}
+VM_RESIZE=${VM_RESIZE:-"1G"}
+VM_SCSIHW=${VM_SCSIHW:-"virtio-scsi-pci"}
+VM_STORAGE=${VM_STORAGE:-"local-lvm"}
+VM_VENDOR_FILE=${VM_VENDOR_FILE:-"vendor-data.yaml"}
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] ${0##*/} Error: $*" >&2
+  exit 2
+}
+
+function help() {
+  echo "
+  Usage: ${0##*/} -i <VM_ID> -n <VM_NAME> --img <VM_IMAGE>
+  Examples:
+    ${0##*/} -i 9000 -n ubuntu20 --img /var/lib/vz/template/iso/ubuntu-20.04-server-cloudimg-amd64.img
+    ${0##*/} -i 9000 -n ubuntu20-$(date +'%Y%m%d') --img /var/lib/vz/template/iso/ubuntu-20.04-server-cloudimg-amd64.img
+    ${0##*/} --net-vlan 10 -i 9000 -n ubuntu20 --img /var/lib/vz/template/iso/ubuntu-20.04-server-cloudimg-amd64.img
+
+  Arguments:
+    --help, -h      Display this help message and exit
+    --bios, -b      Specify the VM bios, ex: 'seabios' or 'ovmf' (default: 'seabios')
+    --id, -i        Specify the VM ID (1-999999999)
+    --image, --img  Specify the VM image (path), ex: /PATH/TO/image.{img,iso,qcow2}
+    --machine       Specify the VM machine type, ex: 'pc' for i440 (default: 'q35')
+    --memory, -m    Specify the VM memory (default: '1024')
+    --name, -n      Specify the VM name (default: 'template')
+    --net-bridge    Specify the VM network bridge (default: 'vmbr0')
+    --net-type      Specify the VM network type (default: 'virtio')
+    --net-vlan      Specify the VM network vlan tag (default: '1')
+    --os            Specify the VM OS (default: 'l26')
+    --resize        Increase the VM boot disk size (default: '1G')
+    --scsihw        Specify the VM storage controller (default: 'virtio-scsi-pci')
+    --storage, -s   Specify the VM storage (default: 'local-lvm')
+    --vendor-file   Specify the cloud-init vendor file (default: 'vendor-data.yaml')
+
+  Using Environment Variables:
+    VM_ID
+    VM_NAME
+    VM_IMAGE
+  "
+  exit 1
+}
+
+function usage() {
+  printf "Usage: %s -i <VM_ID> -n <VM_NAME> --img <VM_IMAGE> \n" "${0##*/}" >&2
+  exit 1
+}
+
+function main() {
+  if [[ ($? -ne 0) || ($# -eq 0) ]]; then
+    usage
+  fi
+
+  if [ "$(id -u)" -ne 0 ] && [ ! -x /usr/sbin/qm ]; then
+    err "You do not have permission to execute /usr/sbin/qm"
+  fi
+
+  OPTIONS=hb:i:m:n:s:
+  LONGOPTS=help,bios:,id:,img:,image:,machine:,memory:,name:,net-bridge:,net-type:,net-vlan:,os:,resize:,scsihw:,storage:,vendor-file:
+  NOARG_OPTS=(-h --help)
+
+  TEMP=$(getopt -n "${0##*/}" -o $OPTIONS --long $LONGOPTS -- "${@}") || exit 2
+  eval set -- "$TEMP"
+  unset TEMP
+
+  while true; do
+    [[ ! ${NOARG_OPTS[*]} =~ ${1} ]] && [[ ${2} == -* ]] && {
+      err "Missing argument for ${1}"
+    }
+    case "${1}" in
+    --help | -h)
+      help
+      ;;
+    --bios | -b)
+      VM_BIOS=${2}
+      shift 2
+      continue
+      ;;
+    --id | -i)
+      VM_ID=${2}
+      shift 2
+      continue
+      ;;
+    --img | --image)
+      VM_IMAGE=${2}
+      shift 2
+      continue
+      ;;
+    --machine)
+      VM_MACHINE=${2}
+      shift 2
+      continue
+      ;;
+    --memory | -m)
+      VM_MEMORY=${2}
+      shift 2
+      continue
+      ;;
+    --name | -n)
+      VM_NAME=${2}
+      shift 2
+      continue
+      ;;
+    --net-bridge)
+      VM_NET_BRIDGE=${2}
+      shift 2
+      continue
+      ;;
+    --net-type)
+      VM_NET_TYPE=${2}
+      shift 2
+      continue
+      ;;
+    --net-vlan)
+      VM_NET_VLAN=${2}
+      shift 2
+      continue
+      ;;
+    --os)
+      VM_OS=${2}
+      shift 2
+      continue
+      ;;
+    --resize)
+      VM_RESIZE=${2}
+      shift 2
+      continue
+      ;;
+    --scsihw)
+      VM_SCSIHW=${2}
+      shift 2
+      continue
+      ;;
+    --storage | -s)
+      VM_STORAGE=${2}
+      shift 2
+      continue
+      ;;
+    --vendor-file)
+      VM_VENDOR_FILE=${2}
+      shift 2
+      continue
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      err "Parsing arguments in main()"
+      ;;
+    esac
+  done
+
+  readonly VM_BIOS VM_ID VM_IMAGE VM_MACHINE VM_MEMORY VM_NAME VM_NET_BRIDGE
+  readonly VM_NET_TYPE VM_NET_VLAN VM_OS VM_RESIZE VM_SCSIHW VM_STORAGE
+  readonly VM_VENDOR_FILE
+
+  # check required variables
+  if [ -z "${VM_ID}" ] || [ -z "${VM_NAME}" ] || [ -z "${VM_IMAGE}" ]; then
+    if [ -z "${VM_ID}" ]; then err "Missing VM ID"; fi
+    if [ -z "${VM_NAME}" ]; then err "Missing VM Name"; fi
+    if [ -z "${VM_IMAGE}" ]; then err "Missing VM Image '*.{img,iso,qcow2}'"; fi
+  elif [ ! -e "$VM_IMAGE" ]; then
+    err "VM Image file is missing, '${VM_IMAGE}'"
+  fi
+
+  # check for cloud-init file storage and config
+  if [ -e /var/lib/vz/snippets ]; then
+    if [ ! -e /var/lib/vz/snippets/"$VM_VENDOR_FILE" ]; then
+      err "cloud-init file is missing, '/var/lib/vz/snippets/${VM_VENDOR_FILE}'"
+    fi
+  else
+    err "/var/lib/vz/snippets directory is missing, enable 'snippets' storage"
+  fi
+
+  echo "VM ID:             ${VM_ID}"
+  echo "VM Name:           ${VM_NAME}"
+  echo "VM Image:          ${VM_IMAGE}"
+  echo "VM OS:             ${VM_OS}"
+  echo "VM Bios:           ${VM_BIOS}"
+  echo "VM Machine Type:   ${VM_MACHINE}"
+  echo "VM Memory:         ${VM_MEMORY}"
+  echo "VM Network Type:   ${VM_NET_TYPE}"
+  echo "VM Network Bridge: ${VM_NET_BRIDGE}"
+  echo "VM Network VLAN:   ${VM_NET_VLAN}"
+  echo "VM Storage:        ${VM_STORAGE}"
+  echo "VM Storage HW:     ${VM_SCSIHW}"
+  echo "Resize Boot Drive: ${VM_RESIZE}"
+  echo "Cloud-init File:   ${VM_VENDOR_FILE}"
+
+  echo "Building Proxmox Template..."
+  # create a new VM
+  /usr/sbin/qm create "${VM_ID}" --name "${VM_NAME}" \
+    --description "template created on $(date)" \
+    --ostype "${VM_OS}" \
+    --bios "${VM_BIOS}" --machine "${VM_MACHINE}" \
+    --scsihw "${VM_SCSIHW}" --agent enabled=1 \
+    --cpu cputype=host --memory "${VM_MEMORY}" \
+    --net0 "${VM_NET_TYPE}",bridge="${VM_NET_BRIDGE}",tag="${VM_NET_VLAN}"
+
+  # import the cloud image
+  /usr/sbin/qm disk import "${VM_ID}" "${VM_IMAGE}" "${VM_STORAGE}"
+
+  # attach the disk to the VM and set it as boot
+  /usr/sbin/qm set "${VM_ID}" --boot order=scsi0 \
+    --scsi0 "${VM_STORAGE}":vm-"${VM_ID}"-disk-0,cache=writeback,discard=on,ssd=1
+
+  # increase the disk image size
+  /usr/sbin/qm resize "${VM_ID}" scsi0 +"${VM_RESIZE}"
+
+  # configure cloud-init drive
+  /usr/sbin/qm set "${VM_ID}" --ide2 "${VM_STORAGE}":cloudinit --ipconfig0 ip=dhcp \
+    --citype nocloud --cicustom "vendor=local:snippets/${VM_VENDOR_FILE}"
+
+  if [ "$VM_BIOS" = "ovmf" ]; then
+    # add UEFI disk
+    /usr/sbin/qm set "${VM_ID}" --efidisk0 "${VM_STORAGE}":1,efitype=4m,pre-enrolled-keys=1
+  fi
+
+  # convert the VM into a template
+  /usr/sbin/qm template "${VM_ID}"
+
+  exit
+}
+
+main "$@"

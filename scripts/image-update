@@ -1,0 +1,345 @@
+#!/bin/bash
+#
+# Download the latest CentOS, Debian, Fedora or Ubuntu cloud image
+# Source: https://github.com/trfore/proxmox-template-scripts
+#
+# Copyright 2022 Taylor Fore
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -e
+
+KEEP_ORIGINAL='false'
+REMOVE_OLD_IMAGE='false'
+STORAGE_PATH='/var/lib/vz/template/iso'
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] ${0##*/} Error: $*" >&2
+  exit 2
+}
+
+function help() {
+  echo "
+  Usage: ${0##*/} -d <DISTRO_NAME> -r <RELEASE_NAME> [ARGS]
+  Examples:
+    ${0##*/} -d ubuntu -r 20
+    ${0##*/} -d ubuntu -r 20 --remove
+    ${0##*/} -d ubuntu -r 20 --storage /tmp
+    ${0##*/} -d debian -r 11 --keep --remove
+
+  Arguments:
+    --help, -h     Display this help message and exit
+    --distro, -d   Specify the distribution name, e.g. 'ubuntu'.
+    --keep, -k     Keep qcow2/raw image after converting, default: false
+    --remove       Remove old images before updating, default: false
+    --release, -r  Specify the release name, e.g. 'focal' or '20'.
+    --storage, -s  Specify the image storage path, default: /var/lib/vz/template/iso
+
+  Alternative Usage: ${0##*/} <DISTRO_NAME>-<RELEASE_NAME> [ARGS]
+  Examples:
+    ${0##*/} ubuntu-20
+    ${0##*/} debian-11 -k
+    ${0##*/} debian-11 -k --remove
+  "
+  exit 1
+}
+
+function usage() {
+  printf "Usage: %s -d <DISTRO_NAME> -r <RELEASE_NAME> [ARGS] \n" "${0##*/}" >&2
+  exit 1
+}
+
+#######################################
+# Globals:
+#   file_basename
+#######################################
+function backup_image() {
+  local file backup_file extensions
+  extensions=(img qcow2 raw)
+
+  for ext in "${extensions[@]}"; do
+    file=${file_basename}.${ext}
+    backup_file=${file_basename}.backup-$(date +'%Y%m%d').${ext}
+
+    if [ -f "${file}" ]; then
+      echo "Backing up ${file}"
+      mv -nv "$file" "$backup_file"
+    fi
+  done
+}
+
+#######################################
+# Compare the SHASUM of a local cloud image to remote image.
+# Globals:
+#   DISTRO_NAME
+#   file_basename
+#   file_name
+#   remote_shasum_url
+# Returns:
+#   0 if SHASUM matches.
+#   1 if SHASUM does not match.
+#######################################
+function check_shasum() {
+  local file current_shasum latest_shasum
+
+  file="${file_name}"
+
+  if [[ ! -e "${file}" && "${DISTRO_NAME}" == 'centos' || "${DISTRO_NAME}" == 'fedora' ]]; then
+    echo "Warning: Missing qcow2 image for SHASUM check, consider using '--keep' to avoid excessive downloads."
+    return 1
+  fi
+
+  tmpfile=$(mktemp /tmp/pve-image-shasum.XXXXXX)
+
+  # get latest shasums
+  curl -sL "${remote_shasum_url}" -o "${tmpfile}"
+
+  # Debian qcow2 images are expected to be converted into a raw format (*.img)
+  # on PVE; so compare the converted image to the remote raw shasum.
+  if [[ "${DISTRO_NAME}" == 'debian' && "${file_extension}" == 'qcow2' ]]; then
+    echo "Pulling latest ${file_basename}.raw SHASUM for converted image..."
+    latest_shasum=$(grep "${file_basename}.raw" "${tmpfile}" | grep -oE '[a-z0-9]{64,128}' -)
+
+    # tmp change filename extension for shasum check
+    file="${file_basename}.img"
+  else
+    echo "Pulling latest ${file} SHASUM..."
+    latest_shasum=$(grep "${file}" "${tmpfile}" | grep -oE '[a-z0-9]{64,128}' -)
+  fi
+
+  current_shasum=$(shasum -a "${shasum_algorithm}" "${file}" | awk '{print $1}')
+
+  echo "Current SHASUM: ${current_shasum}"
+  echo "Latest  SHASUM: ${latest_shasum}"
+
+  rm "$tmpfile"
+
+  if [[ $latest_shasum == "${current_shasum}" ]]; then
+    echo "SHASUM match, image is up-to-date."
+    return 0
+  else
+    echo "No SHASUM match, image is outdated."
+    return 1
+  fi
+}
+
+#######################################
+# Convert *.qcow2 and *.raw files to *.img files
+# Globals:
+#   file_basename
+#   file_extension
+#   file_name
+#   KEEP_ORIGINAL
+#######################################
+function convert_image() {
+  if [[ "${file_extension}" == 'qcow2' ]]; then
+    echo "Converting image ${file_name} to ${file_basename}.img"
+    qemu-img convert -f qcow2 -O raw "${file_name}" "${file_basename}.img"
+    if [ ${KEEP_ORIGINAL} = false ]; then
+      rm "${file_name}"
+    fi
+  elif [[ "${file_extension}" == 'raw' ]]; then
+    if [ ${KEEP_ORIGINAL} = true ]; then
+      cp -nv "${file_basename}.raw" "${file_basename}.img"
+    else
+      mv -nv "${file_basename}.raw" "${file_basename}.img"
+    fi
+  fi
+}
+
+#######################################
+# Set Cloud Image Values
+# Globals:
+#   DISTRO_NAME
+#   RELEASE_NAME
+# Returns:
+#   file_name, string.
+#   file_basename, string.
+#   file_extension, string.
+#   remote_url, string.
+#   remote_shasum_url, string.
+#   shasum_algorithm, string.
+#######################################
+function set_image_values() {
+  if [[ "${DISTRO_NAME}" == "debian" ]]; then
+    case $RELEASE_NAME in
+    buster | 10)
+      file_name="debian-10-generic-amd64.qcow2"
+      remote_url="https://cloud.debian.org/images/cloud/buster/latest/debian-10-generic-amd64.qcow2"
+      remote_shasum_url="https://cloud.debian.org/images/cloud/buster/latest/SHA512SUMS"
+      shasum_algorithm="512"
+      ;;
+    bullseye | 11)
+      file_name="debian-11-generic-amd64.qcow2"
+      remote_url="https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
+      remote_shasum_url="https://cloud.debian.org/images/cloud/bullseye/latest/SHA512SUMS"
+      shasum_algorithm="512"
+      ;;
+    *)
+      err "Unknown distro, only works for Debian 10-11"
+      ;;
+    esac
+  elif [[ "${DISTRO_NAME}" == "ubuntu" ]]; then
+    case $RELEASE_NAME in
+    focal | 20)
+      file_name="ubuntu-20.04-server-cloudimg-amd64.img"
+      remote_url="https://cloud-images.ubuntu.com/releases/focal/release/ubuntu-20.04-server-cloudimg-amd64.img"
+      remote_shasum_url="https://cloud-images.ubuntu.com/releases/focal/release/SHA256SUMS"
+      shasum_algorithm="256"
+      ;;
+    *)
+      err "Unknown distro, only works for Ubuntu LTS 20.04"
+      ;;
+    esac
+  else
+    err "Unsupported distro. Please specify 'debian' or 'ubuntu'."
+  fi
+
+  file_basename=${file_name%.*}
+  file_extension=${file_name##*.}
+
+  readonly file_name file_basename file_extension
+  readonly remote_url remote_shasum_url shasum_algorithm
+  return 0
+}
+
+#######################################
+# Allow users to pass a single arg for distro and release
+# Arguments:
+#   Concatenated string, ex: ubuntu-20
+# Returns:
+#   DISTRO_NAME, string.
+#   RELEASE_NAME, string.
+#######################################
+function split_arg() {
+  DISTRO_NAME=${1%-*}
+  RELEASE_NAME=${1#*-}
+}
+
+function main() {
+  if [[ ($? -ne 0) || ($# -eq 0) ]]; then
+    usage
+  fi
+
+  OPTIONS=hd:r:s:k
+  LONGOPTS=help,distro:,release:,storage:,keep,remove
+  NOARG_OPTS=(-h --help -k --keep --remove)
+
+  TEMP=$(getopt -n "${0##*/}" -o $OPTIONS --long $LONGOPTS -- "${@}") || exit 2
+  eval set -- "$TEMP"
+  unset TEMP
+
+  while true; do
+    [[ ! ${NOARG_OPTS[*]} =~ ${1} ]] && [[ ${2} == -* ]] && {
+      err "Missing argument for ${1}"
+    }
+    case "${1}" in
+    -h | --help)
+      help
+      ;;
+    --distro | -d)
+      DISTRO_NAME=${2,,}
+      shift 2
+      continue
+      ;;
+    --keep | -k)
+      KEEP_ORIGINAL=true
+      shift
+      continue
+      ;;
+    --release | -r)
+      RELEASE_NAME=${2,,}
+      shift 2
+      continue
+      ;;
+    --remove)
+      REMOVE_OLD_IMAGE=true
+      shift
+      continue
+      ;;
+    --storage | -s)
+      STORAGE_PATH=${2}
+      shift 2
+      continue
+      ;;
+    --)
+      if [ -n "${2}" ]; then
+        split_arg "${2,,}"
+      fi
+      shift
+      break
+      ;;
+    *)
+      err "Parsing arguments in main()"
+      ;;
+    esac
+  done
+
+  readonly DISTRO_NAME RELEASE_NAME KEEP_ORIGINAL REMOVE_OLD_IMAGE STORAGE_PATH
+
+  if [ -z "${DISTRO_NAME}" ] || [ -z "${RELEASE_NAME}" ]; then
+    if [ -z "${DISTRO_NAME}" ]; then err "Missing Distribution"; fi
+    if [ -z "${RELEASE_NAME}" ]; then err "Missing Release"; fi
+    usage
+  fi
+
+  if [ ! -d "${STORAGE_PATH}" ]; then
+    err "Storage path does not exist! Value: ${STORAGE_PATH}"
+  fi
+
+  if [ ! -w "${STORAGE_PATH}" ]; then
+    err "You do not have write permission to ${STORAGE_PATH}, are you root?"
+  fi
+
+  echo "Distribution:      ${DISTRO_NAME}"
+  echo "Release:           ${RELEASE_NAME}"
+  echo "Storage:           ${STORAGE_PATH}"
+  echo "Keep qcow2 Image:  ${KEEP_ORIGINAL}"
+  echo "Remove Old Images: ${REMOVE_OLD_IMAGE}"
+
+  set_image_values "$@"
+
+  cd "${STORAGE_PATH}"
+
+  if [[ ! -e "${file_basename}.img" ]]; then
+    echo "Downloading image..."
+    curl -L ${remote_url} -o ${file_name}
+    if [[ "${file_extension}" == 'qcow2' ]]; then
+      convert_image
+    fi
+    echo "Done, new image downloaded!"
+  else
+    if check_shasum "$@"; then
+      echo "Done, image is current."
+    else
+      if [ ${REMOVE_OLD_IMAGE} = true ]; then
+        echo "Removing old image..."
+        # remove original, converted and backup images
+        rm "${file_basename}"*
+      else
+        backup_image
+      fi
+
+      echo "Downloading image..."
+      curl -L ${remote_url} -o ${file_name}
+      if [[ "${file_extension}" == 'qcow2' ]]; then
+        convert_image
+      fi
+      echo "Done, new image downloaded!"
+    fi
+  fi
+
+  exit
+}
+
+main "$@"

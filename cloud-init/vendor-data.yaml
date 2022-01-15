@@ -1,0 +1,7 @@
+#cloud-config
+packages:
+  - qemu-guest-agent
+package_update: true
+power_state:
+  mode: reboot
+  timeout: 30

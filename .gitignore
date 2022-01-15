@@ -1,0 +1,19 @@
+# Cloud Image Files
+**.img
+**.iso
+**.manifest
+**.qed
+**.qcow2
+**.raw
+**.vdi
+**.vpc
+**.vmdk
+
+# Cloud Image Archives
+**.tar*
+
+## Cloud Image Hashes
+**/*-CHECKSUM
+**/*MD5SUM*
+**/*SHASUM*
+**/*SHA*SUM*

@@ -1,0 +1,12 @@
+[Unit]
+Description=Check for updated cloud image %i
+Documentation=https://github.com/trfore/proxmox-template-scripts
+
+[Timer]
+OnCalendar=*-*-10 02:00:00
+AccuracySec=1us
+RandomizedDelaySec=3h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

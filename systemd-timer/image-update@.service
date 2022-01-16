@@ -1,0 +1,8 @@
+[Unit]
+After=network-online.target
+Description= Check for updated cloud image %i
+Documentation=https://github.com/trfore/proxmox-template-scripts
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/image-update %i --keep --remove

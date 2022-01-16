@@ -17,3 +17,6 @@
 **/*MD5SUM*
 **/*SHASUM*
 **/*SHA*SUM*
+
+# Developer Files
+*.code-workspace

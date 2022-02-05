@@ -5,4 +5,4 @@ Documentation=https://github.com/trfore/proxmox-template-scripts
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/image-update %i --keep --remove
+ExecStart=/usr/local/bin/image-update %i --remove

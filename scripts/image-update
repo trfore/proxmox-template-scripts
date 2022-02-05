@@ -19,8 +19,9 @@
 
 set -e
 
-KEEP_ORIGINAL='false'
-REMOVE_OLD_IMAGE='false'
+APPEND_DATE=false
+BACKUP_IMAGES=false
+REMOVE_OLD_IMAGE=false
 STORAGE_PATH='/var/lib/vz/template/iso'
 
 function err() {
@@ -35,21 +36,24 @@ function help() {
     ${0##*/} -d ubuntu -r 20
     ${0##*/} -d ubuntu -r 20 --remove
     ${0##*/} -d ubuntu -r 20 --storage /tmp
-    ${0##*/} -d debian -r 11 --keep --remove
+    ${0##*/} -d debian -r 11 --remove
 
   Arguments:
-    --help, -h     Display this help message and exit
-    --distro, -d   Specify the distribution name, e.g. 'ubuntu'.
-    --keep, -k     Keep qcow2/raw image after converting, default: false
-    --remove       Remove old images before updating, default: false
-    --release, -r  Specify the release name, e.g. 'focal' or '20'.
-    --storage, -s  Specify the image storage path, default: /var/lib/vz/template/iso
+    --help,    -h  Display this help message and exit
+    --backup,  -b  Backup the existing image before creating a new one (default: false)
+                    This flag is not compatiable with --remove flag.
+    --date         Append the date to the image name, e.g. 'ubuntu*-\$DATE.img' (default: false)
+    --distro,  -d  Specify the distribution name, e.g. 'ubuntu'.
+    --remove       Remove old images before updating (default: false)
+                    This flag is not compatiable with --backup flag.
+    --release, -r  Specify the release version, e.g. 'focal' or '20'
+    --storage, -s  Specify a storage path for the image (default: '/var/lib/vz/template/iso')
+
 
   Alternative Usage: ${0##*/} <DISTRO_NAME>-<RELEASE_NAME> [ARGS]
   Examples:
     ${0##*/} ubuntu-20
-    ${0##*/} debian-11 -k
-    ${0##*/} debian-11 -k --remove
+    ${0##*/} debian-11 --remove
   "
   exit 1
 }
@@ -60,64 +64,47 @@ function usage() {
 }
 
 #######################################
-# Globals:
-#   file_basename
+# Backup image files.
+# Arguments:
+#   $1 - file, string.
+# Outputs:
+#   Writes files to the current directory.
 #######################################
-function backup_image() {
-  local file backup_file extensions
-  extensions=(img qcow2 raw)
+function backup_images() {
+  shopt -s extglob
 
-  for ext in "${extensions[@]}"; do
-    file=${file_basename}.${ext}
-    backup_file=${file_basename}.backup-$(date +'%Y%m%d').${ext}
-
-    if [ -f "${file}" ]; then
-      echo "Backing up ${file}"
-      mv -nv "$file" "$backup_file"
-    fi
+  # avoid overwriting existing backups
+  files="${1%.*}!(*.backup.*)"
+  for file in $files; do
+    echo "Backing up ${file}"
+    cp -nv "$file" "${file%.*}.backup.${file##*.}"
   done
+
+  shopt -u extglob
 }
 
 #######################################
 # Compare the SHASUM of a local cloud image to remote image.
 # Globals:
-#   DISTRO_NAME
 #   file_basename
 #   file_name
 #   remote_shasum_url
+#   shasum_algorithm
 # Returns:
 #   0 if SHASUM matches.
 #   1 if SHASUM does not match.
 #######################################
 function check_shasum() {
-  local file current_shasum latest_shasum
-
-  file="${file_name}"
-
-  if [[ ! -e "${file}" && "${DISTRO_NAME}" == 'centos' || "${DISTRO_NAME}" == 'fedora' ]]; then
-    echo "Warning: Missing qcow2 image for SHASUM check, consider using '--keep' to avoid excessive downloads."
-    return 1
-  fi
+  local current_shasum latest_shasum
 
   tmpfile=$(mktemp /tmp/pve-image-shasum.XXXXXX)
 
   # get latest shasums
   curl -sL "${remote_shasum_url}" -o "${tmpfile}"
+  latest_shasum=$(grep "${file_name}" "${tmpfile}" | grep -oE '[a-z0-9]{64,128}' -)
 
-  # Debian qcow2 images are expected to be converted into a raw format (*.img)
-  # on PVE; so compare the converted image to the remote raw shasum.
-  if [[ "${DISTRO_NAME}" == 'debian' && "${file_extension}" == 'qcow2' ]]; then
-    echo "Pulling latest ${file_basename}.raw SHASUM for converted image..."
-    latest_shasum=$(grep "${file_basename}.raw" "${tmpfile}" | grep -oE '[a-z0-9]{64,128}' -)
-
-    # tmp change filename extension for shasum check
-    file="${file_basename}.img"
-  else
-    echo "Pulling latest ${file} SHASUM..."
-    latest_shasum=$(grep "${file}" "${tmpfile}" | grep -oE '[a-z0-9]{64,128}' -)
-  fi
-
-  current_shasum=$(shasum -a "${shasum_algorithm}" "${file}" | awk '{print $1}')
+  # qcow2 images are expected to be converted into a raw format (*.img) on PVE
+  current_shasum=$(shasum -a "${shasum_algorithm}" "${file_basename}".img | awk '{print $1}')
 
   echo "Current SHASUM: ${current_shasum}"
   echo "Latest  SHASUM: ${latest_shasum}"
@@ -134,27 +121,21 @@ function check_shasum() {
 }
 
 #######################################
-# Convert *.qcow2 and *.raw files to *.img files
-# Globals:
-#   file_basename
-#   file_extension
-#   file_name
-#   KEEP_ORIGINAL
+# Get Cloud Image Release Date
+# Arguments:
+#   $1 - url of the cloud image, string.
+#   $2 - file name of the cloud image, string.
+# Outputs:
+#   file_date, string.
 #######################################
-function convert_image() {
-  if [[ "${file_extension}" == 'qcow2' ]]; then
-    echo "Converting image ${file_name} to ${file_basename}.img"
-    qemu-img convert -f qcow2 -O raw "${file_name}" "${file_basename}.img"
-    if [ ${KEEP_ORIGINAL} = false ]; then
-      rm "${file_name}"
-    fi
-  elif [[ "${file_extension}" == 'raw' ]]; then
-    if [ ${KEEP_ORIGINAL} = true ]; then
-      cp -nv "${file_basename}.raw" "${file_basename}.img"
-    else
-      mv -nv "${file_basename}.raw" "${file_basename}.img"
-    fi
-  fi
+function get_image_date() {
+  local url file_date
+
+  url=$(dirname "${1}")
+  # get dates in YYYY-MM-DD or YYYY-MMM-DD format
+  file_date=$(curl -sL "${url}" | grep "${2}" | grep -oiEm 1 '[0-9]{4}-([0-9]{2}-[0-9]{2}|[a-z]{3}-[0-9]{2})')
+
+  echo "${file_date}"
 }
 
 #######################################
@@ -164,8 +145,6 @@ function convert_image() {
 #   RELEASE_NAME
 # Returns:
 #   file_name, string.
-#   file_basename, string.
-#   file_extension, string.
 #   remote_url, string.
 #   remote_shasum_url, string.
 #   shasum_algorithm, string.
@@ -205,18 +184,15 @@ function set_image_values() {
     err "Unsupported distro. Please specify 'debian' or 'ubuntu'."
   fi
 
-  file_basename=${file_name%.*}
-  file_extension=${file_name##*.}
-
-  readonly file_name file_basename file_extension
-  readonly remote_url remote_shasum_url shasum_algorithm
+  readonly file_name remote_url remote_shasum_url shasum_algorithm
   return 0
 }
 
 #######################################
 # Allow users to pass a single arg for distro and release
+# This is a workaround for naming systemd timers
 # Arguments:
-#   Concatenated string, ex: ubuntu-20
+#   $1 - string, ex: ubuntu-20
 # Returns:
 #   DISTRO_NAME, string.
 #   RELEASE_NAME, string.
@@ -231,9 +207,9 @@ function main() {
     usage
   fi
 
-  OPTIONS=hd:r:s:k
-  LONGOPTS=help,distro:,release:,storage:,keep,remove
-  NOARG_OPTS=(-h --help -k --keep --remove)
+  OPTIONS=hd:r:s:b
+  LONGOPTS=help,distro:,release:,storage:,backup,date,remove
+  NOARG_OPTS=(-h --help -b --backup --date --remove)
 
   TEMP=$(getopt -n "${0##*/}" -o $OPTIONS --long $LONGOPTS -- "${@}") || exit 2
   eval set -- "$TEMP"
@@ -247,14 +223,19 @@ function main() {
     -h | --help)
       help
       ;;
+    --backup | -b)
+      BACKUP_IMAGES=true
+      shift
+      continue
+      ;;
+    --date)
+      APPEND_DATE=true
+      shift
+      continue
+      ;;
     --distro | -d)
       DISTRO_NAME=${2,,}
       shift 2
-      continue
-      ;;
-    --keep | -k)
-      KEEP_ORIGINAL=true
-      shift
       continue
       ;;
     --release | -r)
@@ -285,7 +266,7 @@ function main() {
     esac
   done
 
-  readonly DISTRO_NAME RELEASE_NAME KEEP_ORIGINAL REMOVE_OLD_IMAGE STORAGE_PATH
+  readonly DISTRO_NAME RELEASE_NAME REMOVE_OLD_IMAGE STORAGE_PATH
 
   if [ -z "${DISTRO_NAME}" ] || [ -z "${RELEASE_NAME}" ]; then
     if [ -z "${DISTRO_NAME}" ]; then err "Missing Distribution"; fi
@@ -301,40 +282,49 @@ function main() {
     err "You do not have write permission to ${STORAGE_PATH}, are you root?"
   fi
 
+  if [ ${REMOVE_OLD_IMAGE} = true ] && [ ${BACKUP_IMAGES} = true ]; then
+    err "Cannot remove old images and backup new ones at the same time!"
+  fi
+
   echo "Distribution:      ${DISTRO_NAME}"
   echo "Release:           ${RELEASE_NAME}"
   echo "Storage:           ${STORAGE_PATH}"
-  echo "Keep qcow2 Image:  ${KEEP_ORIGINAL}"
   echo "Remove Old Images: ${REMOVE_OLD_IMAGE}"
 
   set_image_values "$@"
+
+  if [ ${APPEND_DATE} = true ]; then
+    image_date=$(get_image_date "${remote_url}" "${file_name}")
+    file_basename="${file_name%.*}-${image_date}"
+  else
+    file_basename="${file_name%.*}"
+  fi
+
+  readonly file_basename
 
   cd "${STORAGE_PATH}"
 
   if [[ ! -e "${file_basename}.img" ]]; then
     echo "Downloading image..."
-    curl -L ${remote_url} -o ${file_name}
-    if [[ "${file_extension}" == 'qcow2' ]]; then
-      convert_image
-    fi
+    curl -L "${remote_url}" -o "${file_basename}.img"
+
     echo "Done, new image downloaded!"
   else
     if check_shasum "$@"; then
       echo "Done, image is current."
     else
       if [ ${REMOVE_OLD_IMAGE} = true ]; then
-        echo "Removing old image..."
-        # remove original, converted and backup images
-        rm "${file_basename}"*
-      else
-        backup_image
+        echo "Removing old images..."
+        # remove original and backup images
+        rm "${file_name%.*}"*
+      elif [ ${BACKUP_IMAGES} = true ]; then
+        # backup all images with or without date
+        backup_images "${file_name}"
       fi
 
       echo "Downloading image..."
-      curl -L ${remote_url} -o ${file_name}
-      if [[ "${file_extension}" == 'qcow2' ]]; then
-        convert_image
-      fi
+      curl -L "${remote_url}" -o "${file_basename}.img"
+
       echo "Done, new image downloaded!"
     fi
   fi

@@ -1,0 +1,10 @@
+#cloud-config
+apt:
+  http_proxy: "http://192.168.1.100:3142"
+  https_proxy: "DIRECT"
+packages:
+  - qemu-guest-agent
+package_update: true
+power_state:
+  mode: reboot
+  timeout: 30

@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Code example from blog post, use the full script:
+# https://github.com/trfore/proxmox-template-scripts/blob/main/scripts/build-template
+
+# use environment vars or default values
+VM_ID=${VM_ID:-"9000"}
+VM_NAME=${VM_NAME:-"template"}
+VM_IMAGE=${VM_IMAGE:-""}
+VM_STORAGE=${VM_STORAGE:-"local-lvm"}
+
+# send error messages to STDERR
+function err() {
+  echo "Error: $*" >&2
+  exit 2
+}
+
+# simple error and help message
+function usage() {
+  printf "Usage: %s --id <VM_ID> --name <VM_NAME> --img <VM_IMAGE> --storage <PVE_STORAGE> \n" "${0##*/}" >&2
+  exit 2
+}
+
+# parse CLI args
+for _ in "$@"; do
+  [[ ${2} == -* ]] && {
+    err "Missing argument for ${1}"
+  }
+  case "${1}" in
+  --help | -h)
+    usage
+    ;;
+  --id)
+    VM_ID=${2}
+    shift 2
+    ;;
+  --name)
+    VM_NAME=${2}
+    shift 2
+    ;;
+  --img)
+    VM_IMAGE=${2}
+    shift 2
+    ;;
+  --storage)
+    VM_STORAGE=${2}
+    shift 2
+    ;;
+  -*)
+    echo "Unknown Argument: $1"
+    usage
+    ;;
+  esac
+done
+
+# check required variables
+if [ -z "${VM_ID}" ]; then err "Missing ID"; fi
+if [ -z "${VM_NAME}" ]; then err "Missing Name"; fi
+if [ ! -e "${VM_IMAGE}" ]; then err "Image file not found! ${VM_IMAGE}"; fi
+
+echo "VM ID:     ${VM_ID}"
+echo "VM Name:   ${VM_NAME}"
+echo "VM Image:  ${VM_IMAGE}"
+
+# create a new VM
+qm create "${VM_ID}" --name "${VM_NAME}" \
+  --description "created on $(date)" \
+  --ostype l26 \
+  --bios seabios --machine q35 \
+  --scsihw virtio-scsi-pci \
+  --cpu cputype=host --memory 1024 \
+  --net0 virtio,bridge=vmbr0,tag=1
+
+# enable QEMU guest agent
+qm set "${VM_ID}" --agent enabled=1
+
+# import the cloud image
+qm disk import "${VM_ID}" "${VM_IMAGE}" "${VM_STORAGE}"
+
+# attach the disk to the VM and set it as boot
+qm set "${VM_ID}" --boot order=scsi0 \
+  --scsi0 "${VM_STORAGE}":vm-"${VM_ID}"-disk-0,cache=writeback,discard=on,ssd=1
+
+# increase the disk image size
+qm resize "${VM_ID}" scsi0 +1G
+
+# add cloud-init drive
+qm set "${VM_ID}" --ide2 "${VM_STORAGE}":cloudinit --ipconfig0 ip=dhcp \
+  --citype nocloud
+
+# add cloud-init vendor config file
+qm set "${VM_ID}" --cicustom "vendor=local:snippets/vendor-data.yaml"
+
+# convert the VM into a template
+qm template "${VM_ID}"
+
+exit

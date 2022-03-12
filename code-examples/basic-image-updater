@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# Code example from blog post, use the full script:
+# https://github.com/trfore/proxmox-template-scripts/blob/main/scripts/image-update
+
+FILE_NAME="ubuntu-20.04-server-cloudimg-amd64.img"
+REMOTE_URL="https://cloud-images.ubuntu.com/releases/focal/release/ubuntu-20.04-server-cloudimg-amd64.img"
+REMOTE_SHASUM_URL="https://cloud-images.ubuntu.com/releases/focal/release/SHA256SUMS"
+STORAGE_PATH=/var/lib/vz/template/iso
+tmpfile=$(mktemp /tmp/image-shasum.XXXXXX)
+
+# change into PVE iso directory
+cd "${STORAGE_PATH}" || exit
+
+# get latest shasums
+curl -L "${REMOTE_SHASUM_URL}" -o "${tmpfile}"
+
+latest_shasum=$(grep "${FILE_NAME}" "${tmpfile}" | awk '{print $1}')
+current_shasum=$(shasum -a 256 "${FILE_NAME}" | awk '{print $1}')
+
+rm "$tmpfile"
+
+if [[ $latest_shasum == "${current_shasum}" ]]; then
+  echo "SHASUM match, image is up-to-date."
+else
+  echo "No SHASUM match, downloading new image..."
+  curl -sL "${REMOTE_URL}" -o "${FILE_NAME}"
+fi
+
+exit

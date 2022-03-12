@@ -3,17 +3,29 @@
 Collection of example cloud-init config files and shell scripts to download cloud-images and create
 [Proxmox templates].
 
+Blog post: [Golden Images and Proxmox Templates with cloud-init]
+
+## Cloud-init Files
+
+- [`vendor-data-minimal.yaml`](/cloud-init/vendor-data-minimal.yaml): A minimal
+  cloud-init file for running a VM on Proxmox.
+
 ## Shell Scripts
 
 - [`build-template`](/scripts/build-template): Create a proxmox template.
 - [`image-update`](/scripts/image-update): Check for an updated image and
   download the latest or missing image.
   - Works with `centos`, `debian` and `ubuntu` cloud images.
-  - Limited support for `fedora`, as the image value is hardcoded to the latest
-    version.
   - **Requires** `curl`
   - **Note**: This script will change the file extension to `*.img` for visibility in the Proxmox GUI, `qm disk import`
     will automatically convert disk image.
+
+## Systemd Templates
+
+- [image-update@.service](/systemd-timer/image-update@.service) and
+  [image-update@.timer](/systemd-timer/image-update@.timer)
+  - Details below: [Automatically update images using systemd timers](#automatically-check-for-updates-using-systemd-timers)
+  - **Note**: Change the day and time this script runs on, `OnCalendar=*-*-10 02:00:00`.
 
 ## Use
 
@@ -90,6 +102,98 @@ Adding the `--date` flag will append the release date to name in `YYYY-MM-DD` or
 `ubuntu-20.04-server-cloudimg-amd64-YYYY-MM-DD.img`. The format is not configurable as it is pulled from the
 distribution's release page.
 
+#### Automatically Check for Updates Using Cron
+
+The majority of images are updated every 1 to 2 months, so be considerate and don't check more than once a month for
+new cloud images. **Note**: Consider staggering cron jobs to different minute (`0`), hour (`2`), and day (`10`) across
+distributions and releases.
+
+```bash
+0 2 10 * * /usr/local/bin/image-update -d <distro_name> -r <release_name>
+```
+
+Example:
+
+```bash
+# create/edit crontab
+crontab -e
+
+# create a job
+10 3 15 * * /usr/local/bin/image-update -d ubuntu -r focal
+```
+
+#### Automatically Check for Updates Using Systemd Timers
+
+The `image-update` script can also parse a single argument for distribution and release, `image-update ubuntu-20`, which
+is useful in creating systemd timers. You can still pass the `--remove` and `--storage` flags as well, however,
+`--distro` and `--release` are overridden when using this approach.
+
+To use systemd timers, add the [template files](/systemd-timer/) to the `/etc/systemd/system` directory and start at
+step 3. Or create a service and timer template, as follows:
+
+1. Create a service, `image-update@.service`, in the `/etc/systemd/system` directory. Add additional script flags to
+   `ExecStart=` after `%i`.
+
+   ```xml
+   [Unit]
+   After=network-online.target
+   Description= Check for updated cloud image %i
+   Documentation=https://github.com/trfore/proxmox-template-scripts
+
+   [Service]
+   Type=oneshot
+   ExecStart=/usr/local/bin/image-update %i --remove
+   ```
+
+2. Create a timer, `image-update@.timer`, in the `/etc/systemd/system` directory. **Note**: Change the day and time this
+   script runs on, `OnCalendar=*-*-10 02:00:00`. To prevent multiple timers from triggering simultaneously,
+   `RandomizedDelaySec=3h` will randomly select a time within a 3-hour window and `AccuracySec=1us` will prevent systemd
+   from grouping the timers.
+
+   ```xml
+   [Unit]
+   Description=Check for updated cloud image %i
+   Documentation=https://github.com/trfore/proxmox-template-scripts
+
+   [Timer]
+   OnCalendar=*-*-10 02:00:00
+   AccuracySec=1us
+   RandomizedDelaySec=3h
+   Persistent=true
+
+   [Install]
+   WantedBy=timers.target
+   ```
+
+3. Reload the systemd configuration
+
+   ```bash
+   systemctl daemon-reload
+   ```
+
+4. Create a Timer, using the format `image-update@<DISTRO>-<RELEASE>.timer`
+
+   ```bash
+   # enable and start a timer
+   systemctl enable image-update@ubuntu-20.timer --now
+   ```
+
+Additional commands:
+
+```bash
+# view all timers
+systemctl list-timers --all
+
+# view timer status
+systemctl status image-update@ubuntu-20.timer
+
+# disable a timer
+systemctl disable image-update@ubuntu-20.timer
+
+# view script update logs
+systemctl status image-update@ubuntu-20.service
+```
+
 ### Proxmox Template Script
 
 [`build-template`](/scripts/build-template): A wrapper script around `qm` to build Proxmox templates. This script
@@ -133,8 +237,13 @@ See [LICENSE](LICENSE) File
 
 ## References
 
+Blog Post:
+
+- [Golden Images and Proxmox Templates with cloud-init]
+
 Linux Cloud Images:
 
+- [OpenStack: Cloud Images], collection of image links.
 - [CentOS Cloud Images]
   - Default User: `centos`
   - Uses: `CentOS-Stream-GenericCloud-X-latest.x86_64.qcow2`
@@ -153,5 +262,7 @@ Proxmox:
 [CentOS Cloud Images]: https://cloud.centos.org/
 [Debian Cloud Images]: https://cloud.debian.org/images/cloud/
 [Ubuntu Cloud Images]: https://cloud-images.ubuntu.com/releases/
+[OpenStack: Cloud Images]: https://docs.openstack.org/image-guide/obtain-images.html
+[Golden Images and Proxmox Templates with cloud-init]: https://www.trfore.com/posts/golden-images-and-proxmox-templates-using-cloud-init/
 [Proxmox]: https://www.proxmox.com/
 [Proxmox templates]: https://pve.proxmox.com/wiki/VM_Templates_and_Clones

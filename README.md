@@ -65,11 +65,11 @@ image-update -d centos -r 9
 ```
 
 ```bash
-image-update -d debian -r 10
+image-update -d debian -r 12
 ```
 
 ```bash
-image-update -d ubuntu -r 20
+image-update -d ubuntu -r 22
 ```
 
 </details>

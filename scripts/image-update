@@ -164,8 +164,14 @@ function set_image_values() {
       remote_shasum_url="https://cloud.debian.org/images/cloud/bullseye/latest/SHA512SUMS"
       shasum_algorithm="512"
       ;;
+    bookworm | 12)
+      file_name="debian-12-generic-amd64.qcow2"
+      remote_url="https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
+      remote_shasum_url="https://cloud.debian.org/images/cloud/bookworm/latest/SHA512SUMS"
+      shasum_algorithm="512"
+      ;;
     *)
-      err "Unknown distro, only works for Debian 10-11"
+      err "Unknown distro, only works for Debian 10-12"
       ;;
     esac
   elif [[ "${DISTRO_NAME}" == "centos" ]]; then

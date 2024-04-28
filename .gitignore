@@ -18,5 +18,7 @@
 **/*SHASUM*
 **/*SHA*SUM*
 
-# Developer Files
+# Developer Files & Environments
 *.code-workspace
+.vscode/
+.venv

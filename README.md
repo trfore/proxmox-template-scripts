@@ -16,6 +16,8 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
 - [`image-update`](/scripts/image-update): Check for an updated image and
   download the latest or missing image.
   - Works with `centos`, `debian` and `ubuntu` cloud images.
+  - Limited support for `fedora`, as the image value is hardcoded to the latest
+    version.
   - **Requires** `curl`
   - **Note**: This script will change the file extension to `*.img` for visibility in the Proxmox GUI, `qm disk import`
     will automatically convert disk image.
@@ -66,6 +68,10 @@ image-update -d centos -r 9
 
 ```bash
 image-update -d debian -r 12
+```
+
+```bash
+image-update -d fedora -r 40
 ```
 
 ```bash
@@ -250,6 +256,9 @@ Linux Cloud Images:
 - [Debian Cloud Images]
   - Default User: `debian`
   - Uses `debian-1x-generic-amd64.qcow2`
+- [Fedora Cloud Images]
+  - Default User: `fedora`
+  - Uses `Fedora-Cloud-Base-Generic.x86_64-XX-XX.qcow2`
 - [Ubuntu Cloud Images]
   - Default User: `ubuntu`
   - Uses `ubuntu-2x.04-server-cloudimg-amd64.img`
@@ -261,6 +270,7 @@ Proxmox:
 
 [CentOS Cloud Images]: https://cloud.centos.org/
 [Debian Cloud Images]: https://cloud.debian.org/images/cloud/
+[Fedora Cloud Images]: https://fedoraproject.org/cloud/download
 [Ubuntu Cloud Images]: https://cloud-images.ubuntu.com/releases/
 [OpenStack: Cloud Images]: https://docs.openstack.org/image-guide/obtain-images.html
 [Golden Images and Proxmox Templates with cloud-init]: https://www.trfore.com/posts/golden-images-and-proxmox-templates-using-cloud-init/

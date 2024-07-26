@@ -237,7 +237,7 @@ build-template -i 9000 -n ubuntu20 --img /var/lib/vz/template/iso/ubuntu-20.04-s
 
 ## Maintainers & License
 
-Taylor Fore (https://github.com/trfore)
+Taylor Fore (<https://github.com/trfore>)
 
 See [LICENSE](LICENSE) File
 

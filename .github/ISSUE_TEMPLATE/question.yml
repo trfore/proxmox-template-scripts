@@ -1,0 +1,27 @@
+name: Question
+description: Ask a question
+title: "[Question]: "
+labels: ["question"]
+assignees:
+  - trfore
+body:
+  - type: textarea
+    id: general
+    attributes:
+      label: Question
+      placeholder: What's your question?
+    validations:
+      required: true
+
+  - type: textarea
+    id: shell-code
+    attributes:
+      label: Relevant code
+      description: Please copy and paste any relevant shell code. This will be automatically formatted into code, so no need for backticks.
+      render: bash
+
+  - type: input
+    id: proxmox-version
+    attributes:
+      label: Proxmox version
+      description: What version of Proxmox are you running?

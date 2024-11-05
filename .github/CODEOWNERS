@@ -1,0 +1,8 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# these will be requested for review when someone opens a pull request.
+*       @trfore
+
+# The following own any files in the .github directory at the root of the
+# repository and any of its subdirectories.
+.github/  @trfore

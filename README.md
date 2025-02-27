@@ -288,3 +288,4 @@ Proxmox:
 [Golden Images and Proxmox Templates with cloud-init]: https://www.trfore.com/posts/golden-images-and-proxmox-templates-using-cloud-init/
 [Proxmox]: https://www.proxmox.com/
 [Proxmox templates]: https://pve.proxmox.com/wiki/VM_Templates_and_Clones
+[snippets]: https://pve.proxmox.com/wiki/Storage

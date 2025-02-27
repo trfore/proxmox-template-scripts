@@ -31,7 +31,19 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
 
 ## Use
 
-- Copy the [scripts](/scripts/) into `/usr/local/bin` on your Proxmox node(s).
+- Create or copy [vendor-data.yaml](/cloud-init/vendor-data.yaml) into your [snippets] storage location, e.g.
+  `/var/lib/vz/snippets/` (default directory for the script):
+
+  ```bash
+  wget -P /var/lib/vz/snippets/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/cloud-init/vendor-data.yaml
+  ```
+
+- Copy the [scripts](/scripts/) into `/usr/local/bin` on your Proxmox node(s):
+
+  ```bash
+  wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{build-template,image-update}
+  ```
+
 - Change the scripts ownership and permissions:
 
   ```bash

@@ -37,15 +37,15 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
   wget -P /var/lib/vz/snippets/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/cloud-init/vendor-data.yaml
   ```
 
-- Copy the [scripts](/scripts/) into `/usr/local/bin` on your Proxmox node(s):
+- Copy the scripts into `/usr/local/bin` on your Proxmox node(s):
 
-  - For Systems using LVM Storage (Default)
+  - For Systems using LVM Storage (Default) [scripts](/scripts/)
 
     ```bash
     wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{build-template,image-update}
     ```
 
-  - For Systems using ZFS Storage
+  - For Systems using ZFS Storage - [scripts-zfs](/scripts-zfs/)
 
     ```bash
     wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{image-update}

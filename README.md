@@ -15,9 +15,7 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
 - [`build-template`](/scripts/build-template): Create a proxmox template.
 - [`image-update`](/scripts/image-update): Check for an updated image and
   download the latest or missing image.
-  - Works with `centos`, `debian` and `ubuntu` cloud images.
-  - Limited support for `fedora`, as the image value is hardcoded to the latest
-    version.
+  - Works with `centos`, `debian`, `fedora` and `ubuntu` cloud images.
   - **Requires** `curl`
   - **Note**: This script will change the file extension to `*.img` for visibility in the Proxmox GUI, `qm disk import`
     will automatically convert disk image.
@@ -83,11 +81,11 @@ image-update -d debian -r 12
 ```
 
 ```bash
-image-update -d fedora -r 40
+image-update -d fedora -r 42
 ```
 
 ```bash
-image-update -d ubuntu -r 22
+image-update -d ubuntu -r 24
 ```
 
 </details>
@@ -99,7 +97,7 @@ image-update -d ubuntu -r 22
 # usage
 image-update <DISTRO_NAME>-<RELEASE_NAME> [ARGS]
 # example
-image-update ubuntu-20 --remove
+image-update ubuntu-24 --remove
 ```
 
 </details>
@@ -117,7 +115,7 @@ Adding the `--backup` flag will backup existing images for the set **distributio
 latest image, using the naming scheme: `IMAGE_NAME.backup.img`.
 
 Adding the `--date` flag will append the release date to name in `YYYY-MM-DD` or `YYYY-MMM-DD` format, e.g.
-`ubuntu-20.04-server-cloudimg-amd64-YYYY-MM-DD.img`. The format is not configurable as it is pulled from the
+`ubuntu-24.04-server-cloudimg-amd64-YYYY-MM-DD.img`. The format is not configurable as it is pulled from the
 distribution's release page.
 
 #### Automatically Check for Updates Using Cron
@@ -142,7 +140,7 @@ crontab -e
 
 #### Automatically Check for Updates Using Systemd Timers
 
-The `image-update` script can also parse a single argument for distribution and release, `image-update ubuntu-20`, which
+The `image-update` script can also parse a single argument for distribution and release, `image-update ubuntu-24`, which
 is useful in creating systemd timers. You can still pass the `--remove` and `--storage` flags as well, however,
 `--distro` and `--release` are overridden when using this approach.
 
@@ -193,7 +191,7 @@ step 3. Or create a service and timer template, as follows:
 
    ```bash
    # enable and start a timer
-   systemctl enable image-update@ubuntu-20.timer --now
+   systemctl enable image-update@ubuntu-24.timer --now
    ```
 
 Additional commands:
@@ -203,13 +201,13 @@ Additional commands:
 systemctl list-timers --all
 
 # view timer status
-systemctl status image-update@ubuntu-20.timer
+systemctl status image-update@ubuntu-24.timer
 
 # disable a timer
-systemctl disable image-update@ubuntu-20.timer
+systemctl disable image-update@ubuntu-24.timer
 
 # view script update logs
-systemctl status image-update@ubuntu-20.service
+systemctl status image-update@ubuntu-24.service
 ```
 
 ### Proxmox Template Script
@@ -227,7 +225,7 @@ build-template -i <vm_id> -n <vm_name> --img <vm_image> [ARGS]
 Example:
 
 ```bash
-build-template -i 9000 -n ubuntu20 --img /var/lib/vz/template/iso/ubuntu-20.04-server-cloudimg-amd64.img
+build-template -i 9000 -n ubuntu24 --img /var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img
 ```
 
 | CLI Flags          | Description                                                       | Default            | Required |

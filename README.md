@@ -13,6 +13,7 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
 ## Shell Scripts
 
 - [`build-template`](/scripts/build-template): Create a proxmox template.
+  - For systems using ZFS storage, a script with `local-zfs` defaults is available: [`build-template` (ZFS)](/scripts-zfs/build-template).
 - [`image-update`](/scripts/image-update): Check for an updated image and
   download the latest or missing image.
   - Works with `centos`, `debian`, `fedora` and `ubuntu` cloud images.
@@ -39,7 +40,12 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
 - Copy the [scripts](/scripts/) into `/usr/local/bin` on your Proxmox node(s):
 
   ```bash
+  # For Systems using LVM Storage (Default)
   wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{build-template,image-update}
+
+  # For Systems using ZFS Storage
+  wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{image-update}
+  wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts-zfs/{build-template}
   ```
 
 - Change the scripts ownership and permissions:

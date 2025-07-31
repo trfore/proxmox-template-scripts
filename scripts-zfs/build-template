@@ -33,7 +33,7 @@ VM_NET_VLAN=${VM_NET_VLAN:-1}
 VM_OS=${VM_OS:-"l26"}
 VM_RESIZE=${VM_RESIZE:-"1G"}
 VM_SCSIHW=${VM_SCSIHW:-"virtio-scsi-pci"}
-VM_STORAGE=${VM_STORAGE:-"local-lvm"}
+VM_STORAGE=${VM_STORAGE:-"local-zfs"}
 VM_VENDOR_FILE=${VM_VENDOR_FILE:-"vendor-data.yaml"}
 
 function err() {
@@ -63,7 +63,7 @@ function help() {
     --os            Specify the VM OS (default: 'l26')
     --resize        Increase the VM boot disk size (default: '1G')
     --scsihw        Specify the VM storage controller (default: 'virtio-scsi-pci')
-    --storage, -s   Specify the VM storage (default: 'local-lvm')
+    --storage, -s   Specify the VM storage (default: 'local-zfs')
     --vendor-file   Specify the cloud-init vendor file (default: 'vendor-data.yaml')
 
   Using Environment Variables:

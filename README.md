@@ -39,14 +39,18 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
 
 - Copy the [scripts](/scripts/) into `/usr/local/bin` on your Proxmox node(s):
 
-  ```bash
-  # For Systems using LVM Storage (Default)
-  wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{build-template,image-update}
+  - For Systems using LVM Storage (Default)
 
-  # For Systems using ZFS Storage
-  wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{image-update}
-  wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts-zfs/{build-template}
-  ```
+    ```bash
+    wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{build-template,image-update}
+    ```
+
+  - For Systems using ZFS Storage
+
+    ```bash
+    wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{image-update}
+    wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts-zfs/{build-template}
+    ```
 
 - Change the scripts ownership and permissions:
 

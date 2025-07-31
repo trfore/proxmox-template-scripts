@@ -39,7 +39,7 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
 
 - Copy the scripts into `/usr/local/bin` on your Proxmox node(s):
 
-  - For Systems using LVM Storage (Default) [scripts](/scripts/)
+  - For Systems using LVM Storage (Default) - [scripts](/scripts/)
 
     ```bash
     wget -P /usr/local/bin/ https://raw.githubusercontent.com/trfore/proxmox-template-scripts/refs/heads/main/scripts/{build-template,image-update}

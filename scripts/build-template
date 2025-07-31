@@ -45,9 +45,9 @@ function help() {
   echo "
   Usage: ${0##*/} -i <VM_ID> -n <VM_NAME> --img <VM_IMAGE>
   Examples:
-    ${0##*/} -i 9000 -n ubuntu20 --img /var/lib/vz/template/iso/ubuntu-20.04-server-cloudimg-amd64.img
-    ${0##*/} -i 9000 -n ubuntu20-$(date +'%Y%m%d') --img /var/lib/vz/template/iso/ubuntu-20.04-server-cloudimg-amd64.img
-    ${0##*/} --net-vlan 10 -i 9000 -n ubuntu20 --img /var/lib/vz/template/iso/ubuntu-20.04-server-cloudimg-amd64.img
+    ${0##*/} -i 9000 -n ubuntu24 --img /var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img
+    ${0##*/} -i 9000 -n ubuntu24-$(date +'%Y%m%d') --img /var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img
+    ${0##*/} --net-vlan 10 -i 9000 -n ubuntu24 --img /var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img
 
   Arguments:
     --help, -h      Display this help message and exit

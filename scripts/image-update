@@ -33,10 +33,10 @@ function help() {
   echo "
   Usage: ${0##*/} -d <DISTRO_NAME> -r <RELEASE_NAME> [ARGS]
   Examples:
-    ${0##*/} -d ubuntu -r 20
-    ${0##*/} -d ubuntu -r 20 --remove
-    ${0##*/} -d ubuntu -r 20 --storage /tmp
-    ${0##*/} -d debian -r 11 --remove
+    ${0##*/} -d ubuntu -r 24
+    ${0##*/} -d ubuntu -r 24 --remove
+    ${0##*/} -d ubuntu -r 24 --storage /tmp
+    ${0##*/} -d debian -r 12 --remove
 
   Arguments:
     --help,    -h  Display this help message and exit
@@ -46,14 +46,14 @@ function help() {
     --distro,  -d  Specify the distribution name, e.g. 'ubuntu'.
     --remove       Remove old images before updating (default: false)
                     This flag is not compatiable with --backup flag.
-    --release, -r  Specify the release version, e.g. 'focal' or '20'
+    --release, -r  Specify the release version, e.g. 'noble' or '24'
     --storage, -s  Specify a storage path for the image (default: '/var/lib/vz/template/iso')
 
 
   Alternative Usage: ${0##*/} <DISTRO_NAME>-<RELEASE_NAME> [ARGS]
   Examples:
-    ${0##*/} ubuntu-20
-    ${0##*/} debian-11 --remove
+    ${0##*/} ubuntu-24
+    ${0##*/} debian-12 --remove
   "
   exit 1
 }
@@ -253,7 +253,7 @@ function set_image_values() {
 # Allow users to pass a single arg for distro and release
 # This is a workaround for naming systemd timers
 # Arguments:
-#   $1 - string, ex: ubuntu-20
+#   $1 - string, ex: ubuntu-24
 # Returns:
 #   DISTRO_NAME, string.
 #   RELEASE_NAME, string.

@@ -140,6 +140,15 @@ crontab -e
 
 #### Automatically Check for Updates Using Systemd Timers
 
+> **Note on Distro Release Frequency**
+>
+> Please consider the typical release frequency when creating timers, as there is little advantage to creating daily or weekly timers.
+>
+> - Centos: monthly, at the end of the month.
+> - Debian: bi-weekly to monthly.
+> - Fedora: single release, no reason to create a timer for any version.
+> - Ubuntu: bi-weekly, typically during the 2nd and 4th week of a month.
+
 The `image-update` script can also parse a single argument for distribution and release, `image-update ubuntu-24`, which
 is useful in creating systemd timers. You can still pass the `--remove` and `--storage` flags as well, however,
 `--distro` and `--release` are overridden when using this approach.

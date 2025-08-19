@@ -87,7 +87,7 @@ image-update -d centos -r 9
 ```
 
 ```bash
-image-update -d debian -r 12
+image-update -d debian -r 13
 ```
 
 ```bash

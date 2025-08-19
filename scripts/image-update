@@ -171,11 +171,10 @@ function set_image_values() {
       shasum_algorithm="512"
       ;;
     trixie | 13)
-      err "Debian 13 'Trixie' is not available"
-      # file_name="debian-13-generic-amd64.qcow2"
-      # remote_url= "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
-      # remote_shasum_url="https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS"
-      # shasum_algorithm="512"
+      file_name="debian-13-generic-amd64.qcow2"
+      remote_url="https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
+      remote_shasum_url="https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS"
+      shasum_algorithm="512"
       ;;
     *)
       err "Unknown distro, only works for Debian 10-12"

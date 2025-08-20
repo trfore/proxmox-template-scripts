@@ -16,7 +16,7 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
   - For systems using ZFS storage, a script with `local-zfs` defaults is available: [`build-template` (ZFS)](/scripts-zfs/build-template).
 - [`image-update`](/scripts/image-update): Check for an updated image and
   download the latest or missing image.
-  - Works with `centos`, `debian`, `fedora` and `ubuntu` cloud images.
+  - Works with `alma`, `centos`, `debian`, `fedora` and `ubuntu` cloud images.
   - **Requires** `curl`
   - **Note**: This script will change the file extension to `*.img` for visibility in the Proxmox GUI, `qm disk import`
     will automatically convert disk image.
@@ -264,9 +264,15 @@ build-template -i 9000 -n ubuntu24 --img /var/lib/vz/template/iso/ubuntu-24.04-s
 | `--scsihw`         | Specify the VM storage controller                                 | `virtio-scsi-pci`  | No       |
 | `--vendor-file`    | Specify the cloud-init vendor file                                | `vendor-data.yaml` | No       |
 
-## Maintainers & License
+## Contributors
 
-Taylor Fore (<https://github.com/trfore>)
+- [trfore](https://github.com/trfore) - original author and maintainer
+
+Special thanks to all those who have [contributed to the project](https://github.com/trfore/proxmox-template-scripts/graphs/contributors)!
+
+Interested in adding a distro or fixing a bug? Feel free to create an issue or pull request!
+
+## License
 
 See [LICENSE](LICENSE) File
 
@@ -279,6 +285,9 @@ Blog Post:
 Linux Cloud Images:
 
 - [OpenStack: Cloud Images], collection of image links.
+- [Alma Cloud Images]
+  - Default User: ``
+  - Uses: `AlmaLinux-X-GenericCloud-latest.x86_64.qcow2`
 - [CentOS Cloud Images]
   - Default User: `centos`
   - Uses: `CentOS-Stream-GenericCloud-X-latest.x86_64.qcow2`
@@ -297,6 +306,7 @@ Proxmox:
 - [Proxmox]
 - [Proxmox templates]
 
+[Alma Cloud Images]: https://almalinux.org/get-almalinux/#Cloud_Images
 [CentOS Cloud Images]: https://cloud.centos.org/
 [Debian Cloud Images]: https://cloud.debian.org/images/cloud/
 [Fedora Cloud Images]: https://fedoraproject.org/cloud/download

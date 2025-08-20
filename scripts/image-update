@@ -216,6 +216,30 @@ function set_image_values() {
       err "Unknown distro, only works for Fedora 40+"
       ;;
     esac
+  elif [[ "${DISTRO_NAME}" == "alma" ]]; then
+    case $RELEASE_NAME in
+    8)
+      file_name="AlmaLinux-8-GenericCloud-UEFI-latest.x86_64.qcow2"
+      remote_url="https://repo.almalinux.org/almalinux/8/cloud/x86_64/images/AlmaLinux-8-GenericCloud-UEFI-latest.x86_64.qcow2"
+      remote_shasum_url="https://repo.almalinux.org/almalinux/8/cloud/x86_64/images/CHECKSUM"
+      shasum_algorithm="256"
+      ;;
+    9)
+      file_name="AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+      remote_url="https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+      remote_shasum_url="https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/CHECKSUM"
+      shasum_algorithm="256"
+      ;;
+    10)
+      file_name="AlmaLinux-10-GenericCloud-latest.x86_64.qcow2"
+      remote_url="https://repo.almalinux.org/almalinux/10/cloud/x86_64/images/AlmaLinux-10-GenericCloud-latest.x86_64.qcow2"
+      remote_shasum_url="https://repo.almalinux.org/almalinux/10/cloud/x86_64/images/CHECKSUM"
+      shasum_algorithm="256"
+      ;;
+    *)
+      err "Unknown distro, only works for Alma 8+"
+      ;;
+    esac
   elif [[ "${DISTRO_NAME}" == "ubuntu" ]]; then
     case $RELEASE_NAME in
     focal | 20)

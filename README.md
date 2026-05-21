@@ -38,7 +38,6 @@ Blog post: [Golden Images and Proxmox Templates with cloud-init]
   ```
 
 - Copy the scripts into `/usr/local/bin` on your Proxmox node(s):
-
   - For Systems using LVM Storage (Default) - [scripts](/scripts/)
 
     ```bash
@@ -241,10 +240,18 @@ the blog post: [Golden Images and Proxmox Templates with cloud-init], and exampl
 build-template -i <vm_id> -n <vm_name> --img <vm_image> [ARGS]
 ```
 
-Example:
+Example Use Cases:
+
+1. Create a Linux VM:
 
 ```bash
 build-template -i 9000 -n ubuntu24 --img /var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img
+```
+
+2. Create a Windows Desktop or Server:
+
+```bash
+build-template -i 9022 -n win22 --img /var/lib/vz/template/iso/WIN_SERVER_2022.iso --os win11 --bios ovmf --memory 16384
 ```
 
 | CLI Flags          | Description                                                       | Default            | Required |
@@ -305,6 +312,7 @@ Proxmox:
 
 - [Proxmox]
 - [Proxmox templates]
+- [Proxmox: Windows 2022 Guest Best Practices]
 
 [Alma Cloud Images]: https://almalinux.org/get-almalinux/#Cloud_Images
 [CentOS Cloud Images]: https://cloud.centos.org/
@@ -315,4 +323,5 @@ Proxmox:
 [Golden Images and Proxmox Templates with cloud-init]: https://www.trfore.com/posts/golden-images-and-proxmox-templates-using-cloud-init/
 [Proxmox]: https://www.proxmox.com/
 [Proxmox templates]: https://pve.proxmox.com/wiki/VM_Templates_and_Clones
+[Proxmox: Windows 2022 Guest Best Practices]: https://pve.proxmox.com/wiki/Windows_2022_guest_best_practices
 [snippets]: https://pve.proxmox.com/wiki/Storage
